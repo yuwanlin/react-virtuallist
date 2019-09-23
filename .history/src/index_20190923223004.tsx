@@ -12,6 +12,7 @@ function App() {
     setList(data.list);
   }, [])
 
+  console.log('list', list)
   return (
     <div className="App">
       <div className={'hello'}>

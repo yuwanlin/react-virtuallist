@@ -2,3 +2,12 @@
   font-family: sans-serif;
   text-align: center;
 }
+* {
+  box-sizing: border-box;
+}
+.hello {
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}

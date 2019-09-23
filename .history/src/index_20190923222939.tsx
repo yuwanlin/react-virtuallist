@@ -12,6 +12,7 @@ function App() {
     setList(data.list);
   }, [])
 
+  console.log('list', list)
   return (
     <div className="App">
       <div className={'hello'}>
@@ -26,8 +27,7 @@ function App() {
       >
         {
           (props: any) => {
-            const {item, index, handleCalculatePosition} = props;
-            const { id, title, content } = item;
+            const {id, title, content, index, handleCalculatePosition} = props;
             return <ListItem
               key={id}
               title={title}
