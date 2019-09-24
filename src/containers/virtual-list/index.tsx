@@ -60,7 +60,8 @@ function VirtualList(props: VirtualListProps) {
     return () => {
       window.removeEventListener('scroll', handleScroll)
     }
-  }, [list.length])
+    // 只要list发生变化，就重新渲染。可能长度没变，但是其中某个item内容变了
+  }, [list])
 
   const getScrollTop = () => {
     return Math.max(document.body.scrollTop, document.documentElement.scrollTop, window.pageYOffset)
