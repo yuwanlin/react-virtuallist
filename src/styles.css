@@ -6,7 +6,7 @@
   box-sizing: border-box;
 }
 .hello {
-  height: 300px;
+  height: 200px;
   display: flex;
   flex-direction: column;
   justify-content: center;

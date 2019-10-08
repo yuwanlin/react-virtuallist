@@ -3,7 +3,7 @@
     border: 1px solid #e7e7e7;
     padding: 10px 20px;
     width: 80%;
-    margin: 0 auto 0;
+    margin: 20px auto 0;
     height: auto;
 }
 
@@ -17,4 +17,17 @@
     color: #333;
     text-indent: 2em;
     word-break: break-all;
+}
+
+.box {
+  margin-top: 12px
+}
+
+.add-btn {
+  width: 200px;
+  height: 40px;
+  line-height: 40px;
+  background: #0099e8;
+  text-align: center;
+  cursor: pointer;
 }

@@ -15,30 +15,33 @@ function App() {
   return (
     <div className="App">
       <div className={'hello'}>
-        <h1>Hello CodeSandbox</h1>
         <h2>Start editing to see some magic happen!</h2>
       </div>
-
-      <VirtualList
-        list={list}
-        numberOfContainer={10}
-        minHeight={80}
-      >
-        {
-          (props: any) => {
-            const {item, index, handleCalculatePosition} = props;
-            const { id, title, content } = item;
-            return <ListItem
-              key={id}
-              title={title}
-              content={content}
-              index={index}
-              id={id}
-              onCalculatePosition={handleCalculatePosition}
-            />
+    {
+      list.length > 0 && (
+        <VirtualList
+          list={list}
+          numberOfContainer={10}
+          minHeight={150}
+        >
+          {
+            (props: any) => {
+              const {item, index, handleCalculatePosition, handleUnmount} = props;
+              const { id, title, content } = item;
+              return <ListItem
+                key={id}
+                title={title}
+                content={content}
+                index={index}
+                id={id}
+                onCalculatePosition={handleCalculatePosition}
+                onUnmount={handleUnmount}
+              />
+            }
           }
-        }
-      </VirtualList>
+        </VirtualList>
+      )
+    }
     </div>
   )
 }

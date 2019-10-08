@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, memo } from 'react'
 
 interface VirtualListProps {
   beforeBufferSize?: number
@@ -16,9 +16,10 @@ interface ItemPosition {
 }
 
 export interface ChildrenProps {
-  item: any
-  index: number,
-  handleCalculatePosition: (node: HTMLElement, index: number) => void
+  item: any;
+  index: number;
+  handleCalculatePosition: (node: HTMLElement, index: number, isDomtreeChanged: boolean) => void;
+  handleUnmount: (node: HTMLElement) => void;
 }
 
 const initialPosition = {
@@ -27,26 +28,39 @@ const initialPosition = {
   index: 0,
 }
 
+const initialOffset = {
+  startOffset: 0,
+  endOffset: 0,
+}
+
 function VirtualList(props: VirtualListProps) {
   const { beforeBufferSize = 3, afterBufferSize = 3, list = [], numberOfContainer = 10, children, minHeight } = props
   const [visibleList, setVisibleList] = useState<any[]>([])
   const itmesPositionRef = useRef<ItemPosition[]>([])
-  const lastScrollItemPosition = useRef<ItemPosition>({ top: 0, bottom: 0, index: 0 })
+  const lastScrollItemPosition = useRef<ItemPosition>(initialPosition)
   const lastScrollTopRef = useRef<number>(0)
   const startIndexRef = useRef<number> (0)
   const listBoxRef = useRef<HTMLDivElement | null>(null)
   // 前面缓存元素的最后一个，这是一个要注意点
   const lastBeforeBufferItemPosition = useRef<ItemPosition>(initialPosition);
-
   // visible list的paddingTop和paddingBottom
   // 在list总长度不变的情况下，要保持visible list的paddingTop +  height + paddingBottom不变，才可以滚动
-  const listOffsetRef = useRef({
-    startOffset: 0,
-    endOffset: 0
-  })
+  const listOffsetRef = useRef(initialOffset);
 
-  useEffect(function init() {
+  const init = () => {
+    itmesPositionRef.current = [];
+    lastScrollItemPosition.current = initialPosition;
+    lastScrollTopRef.current = 0;
+    startIndexRef.current = 0;
+    lastBeforeBufferItemPosition.current = initialPosition;
+    listOffsetRef.current = initialOffset;
+  }
+
+
+
+  useEffect(() => {
     if(list.length === 0) {
+      init();
       return;
     }
     // 当有多屏数据，当滚动的非常快的时候，比如滚动到页面底部后有一个updateVisibleList事件，在事件开始执行时list更新了
@@ -120,14 +134,70 @@ function VirtualList(props: VirtualListProps) {
       startOffset,
       endOffset,
     }
-    console.log('index是否相等：', position, startIndexRef.current, endIndex, list.length, itmesPositionRef.current.length)
     setVisibleList(list.slice(startIndexRef.current, endIndex));
   }
 
-  const handleCalculatePosition = (node: HTMLElement, index: number) => {
+  const addObserver = (node: HTMLElement & { mutationObserver: MutationObserver | null}, index: number) => {
+    if(!node.mutationObserver) {
+      let recordHeight = node.getBoundingClientRect().height;
+      node.mutationObserver = new MutationObserver(function() {
+        let height = node.getBoundingClientRect().height;
+        if (recordHeight === height) {
+          return;
+        }
+        recordHeight = height;
+        handleCalculatePosition(node, index, true);
+      });
+
+      node.mutationObserver.observe(node, {
+        childList: true, // 子节点的变动（新增、删除或者更改）
+        attributes: true, // 属性的变动
+        characterData: true, // 节点内容或节点文本的变动
+        subtree: true // 是否将观察器应用于该节点的所有后代节点
+      });
+    }
+  }
+
+  const cacheChangedPosition = (node: HTMLElement, index: number) => {
+    let changedHeight: number = 0;
+    itmesPositionRef.current = itmesPositionRef.current.map(position => {
+      const { top: originalTop, bottom: originalBottom } = position;
+      // 对该元素及其后面的元素，更新位置信息
+      if(position.index === index) {
+        const nodeRect = node.getBoundingClientRect();
+        changedHeight = nodeRect.height - (position.bottom - position.top);
+        const nodeOffsetY = nodeRect.top + getScrollTop();
+        const newPosition = {
+          top: nodeOffsetY,
+          bottom: nodeOffsetY + nodeRect.height,
+          index: position.index
+        }
+        return newPosition;
+      } else if(position.index > index) {
+        const newPosition = {
+          top: originalTop + changedHeight,
+          bottom: originalBottom + changedHeight,
+          index: position.index
+        }
+        return newPosition;
+      }
+      return position;
+    })
+  }
+
+  const handleCalculatePosition = (node: HTMLElement, index: number, isDomtreeChanged?: boolean) => {
     if(!node) return;
+    if(!MutationObserver) return;
+
+    addObserver(node as any, index);
     const cachedPosition = itmesPositionRef.current!.find(position => position.index === index);
-    if(cachedPosition) return;
+    if(cachedPosition) {
+      // 如果dom树改变了，重新计算位置
+      if(isDomtreeChanged) {
+        cacheChangedPosition(node, index);
+      }
+      return;
+    };
     const { top, height } = node.getBoundingClientRect();
     const nodeOffsetY = top + getScrollTop();
     const position = {
@@ -138,6 +208,13 @@ function VirtualList(props: VirtualListProps) {
     itmesPositionRef.current.push(position);
     if(index + 1 === beforeBufferSize) {
       lastBeforeBufferItemPosition.current = position;
+    }
+  }
+
+  const handleUnmount = (node: HTMLElement & { mutationObserver: MutationObserver | null}) => {
+    if(node.mutationObserver) {
+      node.mutationObserver.disconnect();
+      node.mutationObserver = null;
     }
   }
 
@@ -153,7 +230,7 @@ function VirtualList(props: VirtualListProps) {
 
   return (
     <div
-      style={{paddingTop: top + 'px', paddingBottom : listOffsetRef.current.endOffset + 'px'}}
+      style={{paddingTop: top + 'px', paddingBottom : bottom + 'px'}}
       ref={listBoxRef}
     >
       {
@@ -161,7 +238,8 @@ function VirtualList(props: VirtualListProps) {
           return children!({
             item,
             index: startIndexRef.current + index,
-            handleCalculatePosition
+            handleCalculatePosition,
+            handleUnmount,
           })
         })
       }
@@ -169,4 +247,4 @@ function VirtualList(props: VirtualListProps) {
   )
 }
 
-export default VirtualList
+export default memo(VirtualList);
