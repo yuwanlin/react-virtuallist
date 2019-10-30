@@ -219,9 +219,9 @@ function VirtualList(props: VirtualListProps) {
   }
 
   let top = listOffsetRef.current.startOffset;
-  let bottom = 0; listOffsetRef.current.endOffset;
-  top = top < 0 ? 0 : top;
-  bottom = bottom < 0 ? 0 : bottom;
+  let bottom = listOffsetRef.current.endOffset;
+  top = Math.max(0, top);
+  bottom = Math.max(0, bottom);
 
 
   if(list.length === 0) {
